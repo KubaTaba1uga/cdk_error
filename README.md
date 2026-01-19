@@ -1,26 +1,71 @@
-# ⚡ C Development Kit: Error
+# C Development Kit: Error
 
-The C Development Kit (CDK) is a collection of lightweight, MIT-licensed libraries to make C development on Linux simpler and more consistent.
+The C Development Kit (CDK) is a collection of lightweight, MIT licensed libraries to make C development on Linux simpler and more consistent.
 
-C Development Kit: Error is an error component. It works much like `errno`, but adds richer context: not just an error code, but also a message and a lightweight backtrace showing where the error has been passed along. All of this comes without any heap allocations, making it safe and fast even for embedded or low-overhead systems.
+## Intro
 
-What is nice about `cdk_errno` is that on fast path it is as fast as normal `errno`, so if no error occured in the function there is no penalty hit. The difference show only on slow path so when error occurs:
+Wouldn't it be awesome if we had errors with messages, try, catch, and even backtraces in C?
+
+Wouldn't it be even more awesome if such a library were not bloated with `setjmp`, `malloc`, and similar monstrosities?
+
+In fact, it would, so I created this simple library. It allows using an `errno` like mechanism with additional string messages, backtraces, and a try-catch mechanism, all in the form of a single header file. Feel free to just drop the library into your project to add a simple error stack to your code.
+
+Usage example:
+
+```c
+#include <cdk_error.h>
+
+cdk_error_t bar(void) {
+  cdk_errno = cdk_errnos(EINVAL, "Something went wrong in bar");
+  return cdk_errno;
+}
+
+void bar_cleanup(void) {}
+
+cdk_error_t foo(void) {
+  cdk_errno = bar();
+  CDK_TRY(cdk_errno);
+
+  return 0;
+
+error_out:
+  return cdk_errno;
+}
+
+int main(void) {
+  char buf[2048];
+
+  cdk_errno = bar();
+  CDK_TRY(cdk_errno);
+
+  cdk_errno = foo();
+  CDK_TRY_CATCH(cdk_errno, error_bar_cleanup);
+
+  return 0;
+
+error_bar_cleanup:
+  bar_cleanup();
+error_out:
+  cdk_error_dumps(cdk_errno, sizeof(buf), buf);
+  return cdk_errno->code;
+}
 ```
-❯ ./build/example/bench
-5-lvl errno-trace avg:     32.8 ns
-5-lvl fmt errno-trace avg: (disabled by CDK_ERROR_OPTIMIZE)
-5-lvl int           avg:   5.7 ns
-```
 
-With `CDK_ERROR_OPTIMIZE` enabled `cdk_error` is like 6-8 times slower than normal errno. This performence hit is perfectly accaptable in most cases, because there will be plenty of other app critical processes wich will slow you more than this 32ns overhead.
+## Architecture overview
 
----
+We use a few simple ideas in the library.
 
-## 📦 Getting started
+First: to avoid locks, we use `_Thread_local` storage, which allows us to drop locking entirely because each thread has its own error stack at the moment it is created.
 
-The library is header-only. To use it, copy the single header file into **your own project or library**. Each project should keep its own copy to avoid sharing one global error state across unrelated code.
+Second: there is `struct Error`, which describes a generic error and can be used in three different modes. This is done because if you want the most speed on error handling, you do not want to use additional strings, hence the integer error type. We also have string and formatted string types. The integer type is the fastest, while the formatted string is the slowest.
 
-Create a small wrapper header and add one `.c` file that defines the thread-local variables:
+Third: we gather backtraces manually. This gathering is hidden behind `CDK_TRY` and `CDK_TRY_CATCH`, so the user does not need to remember about it.
+
+Fourth: all code is in a single header file, which makes it easy to drop into an application or a library. This way, every library or application has its own error stack, separated from the rest of the system. Because of that, we try to make `struct Error` as small as possible. On my amd64 PC it is 664 bytes. If you need to make it smaller, compile with `-DCDK_ERROR_OPTIMIZE=1`; on my amd64 machine this reduces a single error object to 48 bytes.
+
+## Getting started
+
+The library is header only. To use it, copy the single header file into your own project or library. By default, the library has the errno mechanism enabled, so you will need two definitions for errno: `cdk_errno` and `cdk_hidden_errno`.
 
 ```c
 // myerror.h
@@ -42,8 +87,7 @@ _Thread_local cdk_error_t cdk_errno = NULL;
 _Thread_local struct cdk_Error cdk_hidden_errno = {0};
 ```
 
-Every other file in your project just includes `myerror.h`.
-The `.c` file is required, because it provides the actual definitions of the thread-local globals; without it you’d only have declarations, and the linker would complain.
+Every file in your project includes `myerror.h`.
 
 🔧 If you’d like to change the prefix (for example, from `cdk_` to `my_`), there’s a helper script:
 
@@ -54,115 +98,11 @@ python3 tools/change_prefix.py \
   --old cdk --new my
 ```
 
-This produces a copy of the header with your own prefix, ready to drop into a project.
+## Why copy instead of link?
 
----
+Unlike traditional libraries, `cdk_error` is designed to be embedded into each project separately. We do it in such way because every library or program should have its **own private error state**.
 
-## ❓ Why copy instead of link?
-
-Unlike traditional libraries, `cdk_error` is designed to be embedded into each project separately. The reason is simple: every library or program should have its **own private error state**.
-
-If multiple components linked against the same global `cdk_errno`, their errors could overwrite each other, leading to confusing or incorrect traces. By copying the header into your project (and optionally renaming the prefix), you guarantee isolation: errors raised inside your library stay inside your library, and don’t clash with others.
-
----
-
-## 💡 Usage
-
-Here’s the simplest way to use the errno-style API:
-
-```c
-#include <stdio.h>
-#include "myerror.h"
-
-const char *nested_failing_func(void) {
-  if (1) {
-    cdk_errno = cdk_errnos(ENOBUFS, "My error");
-    return NULL;
-  }
-  return "All good";
-}
-
-int failing_func(void) {
-  const char *s = nested_failing_func();
-  if (!s) {
-    return cdk_ereturn(-1);
-  }
-  return 13;
-}
-
-void api_entry(void) {
-  int res = failing_func();
-  if (res < 0) {
-    cdk_ewrap();
-    return;
-  }
-}
-
-int main(void) {
-  char buf[1024];
-  cdk_errno = 0;
-
-  api_entry();
-  if (cdk_errno) {
-    cdk_edumps(sizeof(buf), buf);
-    printf("%s", buf);
-    return -1;
-  }
-  return 0;
-}
-```
-
-The pattern is straightforward: when something fails, set `cdk_errno` with a code or message, return an error value, and wrap it if you need to add another frame. At the top level, dump the error to a buffer or file to see the full trace.
-
----
-
-### ⚡ Performance
-
-One of the nice things about `cdk_errno` is that on the **fast path** it behaves just like plain `errno`: if no error occurs in a function, there’s no extra overhead at all.
-The difference only shows up on the **slow path**, when an error is actually created and propagated:
-
-```
-❯ ./build/example/bench
-5-lvl errno-trace avg:     32.8 ns
-5-lvl fmt errno-trace avg: (disabled by CDK_ERROR_OPTIMIZE)
-5-lvl int           avg:   5.7 ns
-```
-
-With `CDK_ERROR_OPTIMIZE` enabled (which removes formatted errors), the library is about **6–8× slower than a plain `errno` write** when an error occurs.
-That sounds big, but remember: it’s \~32 nanoseconds to build a full 5-level trace. In practice this overhead is negligible compared to real application work (I/O, syscalls, allocations, etc.).
-
-In other words: you get structured errors and backtraces “for free” in the common case, and only pay a small price when something actually goes wrong.
-
----
-
-
-## 🛠️ Building examples and tests
-
-This project uses [Meson](https://mesonbuild.com/) for its build system. To build with examples and tests enabled, run:
-
-```sh
-meson setup build -Dtests=true -Dexamples=true
-meson compile -C build
-```
-
-Examples will be placed in `build/example/` and test binaries in `build/test/`. You can run them directly:
-
-```sh
-./build/example/example_1
-./build/example/example_2
-```
-
-and execute the full test suite with:
-
-```sh
-meson test -C build
-```
-
-🧪 Tests are written using the Unity framework, pulled in automatically as a Meson subproject.
-
----
-
-## ⚙️ Development workflow
+## Development workflow
 
 For convenience, there’s an [Invoke](https://www.pyinvoke.org/) setup that automates common tasks:
 
@@ -175,11 +115,6 @@ inv lint      # run clang-tidy checks
 inv clean     # remove build artifacts
 ```
 
-This makes it easy to keep the environment consistent and catch issues early.
+## License
 
----
-
-## 📄 License
-
-Released under the [MIT License](LICENSE) © 2025 Jakub Buczynski (KubaTaba1uga).
-
+Released under the [MIT License](LICENSE) © 2026 Jakub Buczynski (KubaTaba1uga).

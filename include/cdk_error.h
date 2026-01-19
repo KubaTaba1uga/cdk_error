@@ -267,6 +267,7 @@ static inline int cdk_error_dumps(cdk_error_t err, size_t buf_size, char *buf) {
 
   return 0;
 }
+
 static inline void cdk_error_add_frame(cdk_error_t err,
                                        struct cdk_EFrame *frame) {
   if (err->eframes_len >= CDK_ERROR_BTRACE_MAX) {
@@ -302,6 +303,9 @@ static inline void cdk_error_add_frame(cdk_error_t err,
 #define cdk_errorf(err, code, fmt, ...)                                        \
   cdk_error_fstr((err), (code), __FILE_NAME__, __func__, __LINE__, (fmt),      \
                  ##__VA_ARGS__)
+
+#define CDK_TRY_CATCH(err, label) if (err){ cdk_error_wrap(err); goto label; }
+#define CDK_TRY(err) CDK_TRY_CATCH(err, error_out)
 
 /******************************************************************************
  *                                Errno API                                   *
