@@ -11,14 +11,14 @@ meson compile -C build
 meson install -C build
 ```
 
-Compile example:
+Compile the example:
 ```bash
 export PKG_CONFIG_PATH=/opt/cdk_errno/lib/x86_64-linux-gnu/pkgconfig/:$PKG_CONFIG_PATH
-gcc -o build/example_0 `pkg-config --cflags cdk_error` new_examples/library/example.c `pkg-config --libs cdk_error`
+gcc -o build/example_lib `pkg-config --cflags cdk_error` new_examples/library/example.c `pkg-config --libs cdk_error`
 ```
 
-Run example:
+Run the example:
 ```bash
 export LD_LIBRARY_PATH=/opt/cdk_errno/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
-./build/example_0
+./build/example_lib
 ```

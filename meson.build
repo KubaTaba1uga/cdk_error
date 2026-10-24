@@ -78,10 +78,3 @@ pkg_mod.generate(
 if get_option('tests')
     subdir('test')
 endif
-
-# ******************************************************************************
-# *    Example
-# ******************************************************************************
-if get_option('examples')
-    subdir('example')
-endif
