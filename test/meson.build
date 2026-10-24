@@ -21,7 +21,7 @@ foreach test : tests
   exe = executable(name,
     sources: [src + '.c', test_runner.process(src + '.c')],
     dependencies: unity_dependency,
-    include_directories: cdk_error_inc,
+    include_directories: public_headers,
     c_args: extra_c_args,
   )
 

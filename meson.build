@@ -12,7 +12,7 @@ project(
     'c_std=c11',
   ],
 )
-project_description = 'An example shared library'
+project_description = 'Error handling library'
 
 project_headers = [
   'include/cdk_error.h'
@@ -35,19 +35,11 @@ build_args += [
   '-DPROJECT_VERSION=' + meson.project_version(),
 ]
 
-# Only make public interfaces visible
-#if target_machine.system() == 'windows' or target_machine.system() == 'cygwin'
-#  build_args += '-DCDK_PUBLIC="__declspec(dllexport)"'
-#else
-#  build_args += '-DCDK_PUBLIC=__attribute__((visibility("default")))'
-#endif
-
 project_target = shared_library(
   meson.project_name(),
   project_source_files,
   install : true,
   c_args : build_args,
-  # gnu_symbol_visibility : 'hidden',
   include_directories : public_headers,
 )
 
