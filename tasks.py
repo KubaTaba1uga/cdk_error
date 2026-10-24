@@ -38,6 +38,7 @@ def install(c):
         C_COMPILER: C_COMPILER,
         C_FORMATTER: C_FORMATTER,
         C_LINTTER: C_LINTTER,
+        "j2": "j2cli"
     }
     _pr_info("Installing dependencies...")
 

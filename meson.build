@@ -12,7 +12,7 @@ project(
     'c_std=c11',
   ],
 )
-project_description = 'Error handling library'
+project_description = 'An errno like mechanism with additional string messages, backtraces, and a try-catch mechanism written in C.'
 
 project_headers = [
   'include/cdk_error.h'
