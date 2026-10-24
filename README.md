@@ -65,38 +65,9 @@ Fourth: all code is in a single header file, which makes it easy to drop into an
 
 ## Getting started
 
-The library is header only. To use it, copy the single header file into your own project or library. By default, the library has the errno mechanism enabled, so you will need two definitions for errno: `cdk_errno` and `cdk_hidden_errno`.
+The library is header only, but we expose two installation mechanisms. You can install library as any other .so, with meson install, for more info check out `example/library/README.md`. 
 
-```c
-// myerror.h
-#ifndef MYERROR_H
-#define MYERROR_H
-
-#define CDK_ERROR_FSTR_MAX 512
-#define CDK_ERROR_BTRACE_MAX 32
-#include "cdk_error.h"
-
-#endif
-```
-
-```c
-// myerror.c
-#include "myerror.h"
-
-_Thread_local cdk_error_t cdk_errno = NULL;
-_Thread_local struct cdk_Error cdk_hidden_errno = {0};
-```
-
-Every file in your project includes `myerror.h`.
-
-🔧 If you’d like to change the prefix (for example, from `cdk_` to `my_`), there’s a helper script:
-
-```bash
-python3 tools/change_prefix.py \
-  --inf include/cdk_error.h \
-  --out my_error.h \
-  --old cdk --new my
-```
+Or you can embed the single header file into your own project or library, for more info check out `example/headeronly/README.md`.
 
 ## Why copy instead of link?
 

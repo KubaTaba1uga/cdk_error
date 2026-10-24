@@ -22,7 +22,7 @@ jobs:
 
       - name: Build project
         run: |
-          inv build --debug --tests --examples
+          inv build --debug --tests
 
       - name: Run tests
         run: |

@@ -3,8 +3,3 @@ option('tests',
   value: false,
   description: 'Build library tests'
 )
-option('examples',
-  type: 'boolean',
-  value: false,
-  description: 'Build library examples'
-)

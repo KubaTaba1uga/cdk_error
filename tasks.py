@@ -5,6 +5,7 @@ import glob
 import os
 import shutil
 import subprocess
+import re
 
 from invoke import task
 
@@ -38,6 +39,7 @@ def install(c):
         C_COMPILER: C_COMPILER,
         C_FORMATTER: C_FORMATTER,
         C_LINTTER: C_LINTTER,
+        "j2": "j2cli"
     }
     _pr_info("Installing dependencies...")
 
@@ -52,7 +54,7 @@ def install(c):
 
 
 @task
-def build(c, debug=False, tests=False, examples=False):
+def build(c, debug=False, tests=False):
     """
     Configure and build the project.
 
@@ -72,9 +74,6 @@ def build(c, debug=False, tests=False, examples=False):
 
     if tests:
         setup_command = f"{setup_command} -Dtests=true"
-
-    if examples:
-        setup_command = f"{setup_command} -Dexamples=true"
 
     _run_command(c, setup_command)
     _run_command(c, f"meson compile -v -C {BUILD_PATH}")
@@ -182,7 +181,36 @@ def clean(c, extra=""):
 
     _pr_info("Clean up completed.")
 
+@task
+def deb(c):
+    """ Build deb package.
+    """
+    current_revision = 1
+    version_re = re.compile(r"version : '(\S+)'")
+    version_value = None
+    description_re = re.compile(r"project_description = '(.+)'")
+    description_value = None
+    
+    with open("meson.build") as fp:
+        meson = fp.readlines()
 
+    
+    for line in meson:
+        version_match = version_re.search(line)
+        
+        if version_match:
+            version_value = version_match[1]
+            
+        description_match = description_re.search(line)
+        
+        if description_match:
+            description_value = description_match[1]
+
+    if not version_value or not description_value:
+        raise ValueError(f"No version or description: {version_value=} {description_value=}")
+    
+    _run_command(c, f'bash tools/create_deb.sh cdkerror {version_value} {current_revision} "{description_value}"')
+    
 ######################################################################################
 #                                  Private API                                       #
 ######################################################################################
