@@ -23,6 +23,8 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
  */
+#ifndef CDK_ERROR_H
+#define CDK_ERROR_H
 
 #ifdef __STDC_NO_THREADS__
 #error "Threads extension is required to compile this library"
@@ -329,5 +331,7 @@ _Thread_local extern struct cdk_Error cdk_hidden_errno;
 
 #define cdk_edumps(buf_size, buf)                                              \
   cdk_error_dumps(&cdk_hidden_errno, buf_size, buf)
+
+#endif
 
 #endif
